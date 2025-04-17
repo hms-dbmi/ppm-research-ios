@@ -12,13 +12,16 @@ import SMART
 
 class PPMParticipant: Participant {
     
+    var signedConsent: SMARTMarkers.SignedConsent?
+    
+    
     func taskDidConclude(task: SMARTMarkers.StudyTask) {
        
     }
 
-    var smConsent: SMARTMarkers.Consented?
+    var smConsent: SMARTMarkers.SignedConsent?
     
-    typealias ConsentedType = Consented
+    typealias ConsentedType = SignedConsent
     
     var identifier: String?
     
@@ -51,7 +54,7 @@ class PPMParticipant: Participant {
         self.study = study
         self.fhirResearchSubject = subject
         if let consent {
-            self.smConsent = Consented(consent)
+            self.smConsent = SignedConsent(consent)
         }
         
     }

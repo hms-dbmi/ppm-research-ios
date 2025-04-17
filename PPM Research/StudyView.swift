@@ -29,10 +29,9 @@ struct StudyView: View {
 
     var body: some View {
         NavigationStack {
-            VStack (spacing: 20) {
+            List {
                 Text(viewModel.study.name ?? "-na-")
                     .font(.largeTitle)
-                    .foregroundStyle(.primary)
                 Text(viewModel.study.organization?.name?.string ?? "")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -40,16 +39,14 @@ struct StudyView: View {
                     LazyHStack (alignment: .top) {
                         ForEach(viewModel.about_content ?? []) { content in
                             WebView(text: content.text)
-                                .frame(width: 340, height: 480)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                                .padding()
+                                .frame(width: 250, height: 320)
+                                .padding([.top, .leading])
                         }
                     }
+                    .background(Color.secondary)
                     .scrollTargetLayout()
                 }
                 .scrollTargetBehavior(.viewAligned)
-                .scrollIndicators(.visible)
-                .safeAreaPadding(.horizontal, 10)
                 Button {
                     if let view = self.viewModel.showEnrollmentView() {
                         self.enrollmentView = EnrollmentView(view)
@@ -74,7 +71,9 @@ struct StudyView: View {
                     dismiss()
                 }
             }
-        }
+        }        
+        .background(Color.red)
+
     }
 }
 
@@ -84,7 +83,9 @@ struct WebView: UIViewRepresentable {
     var text: String
     
     func makeUIView(context: Context) -> WKWebView {
-        return WKWebView()
+        let v = WKWebView()
+        v.pageZoom = 1.0
+        return v
     }
     
     func updateUIView(_ uiView: WKWebView, context: Context) {
@@ -113,7 +114,7 @@ public class StudyViewModel {
     
     func showEnrollmentView() -> UIViewController? {
         
-        let consent = SConsentController(
+        let consent = ConsentController(
             study_title: study.name!,
             htmlTemplate: "<h1>Consent</h1>",
             signatureTitle: nil,

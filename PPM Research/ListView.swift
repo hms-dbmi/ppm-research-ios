@@ -20,7 +20,7 @@ class StudiesView: UITableViewController {
         title = "Studies"
         self.navigationItem.largeTitleDisplayMode = .always
         self.navigationItem.rightBarButtonItem = UIBarButtonItem(image: UIImage(systemName: "qrcode.viewfinder"), style: .plain, target: self, action: #selector(showQRScanner(_:)))
-        let url = URL(string: "https://dev.peoplepoweredmedicine.org/fhir/")!
+        let url = URL(string: "https://peoplepoweredmedicine.org/fhir/")!
         getstudies(url: url) { bundl, error in
             if let bundl {
                 do {
@@ -86,7 +86,7 @@ class StudiesView: UITableViewController {
                 VStack (alignment: .leading) {
                     Text("People-Powered Medicine")
                         .font(.title2)
-                    Text("http://peoplepoweredmedicine.org/studies/fhir/ResearchStudy")
+                    Text("http://peoplepoweredmedicine.org/fhir/ResearchStudy")
                         .font(.footnote)
                 }
             }

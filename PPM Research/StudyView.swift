@@ -20,76 +20,146 @@ struct html: Identifiable {
 
 
 struct StudyView: View {
-    
     @State var viewModel: StudyViewModel
-    @State var enrollmentView: EnrollmentView? = nil
-    @State var isPresented: Bool = true
+    @State private var enrollmentView: EnrollmentView? = nil
+    @State private var currentPageID: html.ID? = nil
+    @State private var currentIndex: Int = 0
 
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             List {
-                Text(viewModel.study.name ?? "-na-")
-                    .font(.largeTitle)
-                Text(viewModel.study.organization?.name?.string ?? "")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                ScrollView(.horizontal) {
-                    LazyHStack (alignment: .top) {
-                        ForEach(viewModel.about_content ?? []) { content in
-                            WebView(text: content.text)
-                                .frame(width: 250, height: 320)
-                                .padding([.top, .leading])
-                        }
-                    }
-                    .background(Color.secondary)
-                    .scrollTargetLayout()
-                }
-                .scrollTargetBehavior(.viewAligned)
-                Button {
-                    if let view = self.viewModel.showEnrollmentView() {
-                        self.enrollmentView = EnrollmentView(view)
-                    }
-                }
-                label: {
-                    Text("Check Eligibility")
-                        .frame(minWidth: 0, maxWidth: 300)
-                        .foregroundColor(.white)
-                        .padding()
-                        .background {
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(.blue)
-                        }
-                }
-                .sheet(item: $enrollmentView, content: { view in
-                    view
-                })
-            }
-            .toolbar {
-                Button("Done") {
-                    dismiss()
-                }
-            }
-        }        
-        .background(Color.red)
+                Section {
+                    Text(viewModel.study.organization?.name?.string ?? "")
+                    Text(viewModel.study.studyDescription ?? "")
+                        .font(.subheadline)
 
+                }
+                .background(Color.clear)
+
+                
+                if let about = viewModel.about_content, !about.isEmpty {
+                    GeometryReader { proxy in
+                        ScrollView(.horizontal) {
+                            LazyHStack(alignment: .center, spacing: 0) {
+                                ForEach(about) { content in
+                                    WebView(text: content.text, openLinksExternally: true)
+                                        .frame(width: proxy.size.width, height: proxy.size.height)
+                                        .contentShape(Rectangle())
+                                        .containerRelativeFrame(.horizontal)
+                                        .id(content.id)
+                                }
+                            }
+                            .scrollTargetLayout()
+                        }
+                        .scrollIndicators(.visible, axes: .horizontal)
+                        .scrollTargetBehavior(.paging)
+                        .scrollPosition(id: $currentPageID)
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        // Update current page index when the bound scroll position changes
+                        .onChange(of: currentPageID) { _, newID in
+                            if let newID, let idx = about.firstIndex(where: { $0.id == newID }) {
+                                currentIndex = idx
+                            }
+                        }
+                        // Page dots overlay
+                        .overlay(alignment: .bottom) {
+                            HStack(spacing: 6) {
+                                ForEach(about.indices, id: \.self) { i in
+                                    Circle()
+                                        .fill(i == currentIndex ? Color.primary : Color.secondary.opacity(0.35))
+                                        .frame(width: 8, height: 8)
+                                }
+                            }
+                            .padding(.bottom, 8)
+                        }
+                    }
+                    .frame(minHeight: 360)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                }
+                
+                
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle(viewModel.study.name ?? "Untitled Study")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+                ToolbarItem(placement: .bottomBar) {
+                    HStack {
+                        Spacer()
+                        Button {
+                            if let view = viewModel.showEnrollmentView() {
+                                enrollmentView = EnrollmentView(view)
+                            }
+                        } label: {
+                            Text("Check Eligibility").bold()
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .accessibilityIdentifier("checkEligibilityButton")
+                        Spacer()
+                    }
+                }
+            }
+            .sheet(item: $enrollmentView) { view in
+                view
+            }
+        }
     }
 }
 
 struct WebView: UIViewRepresentable {
     typealias UIViewType = WKWebView
-    
+
     var text: String
-    
+    var baseURL: URL? = nil
+    var openLinksExternally: Bool = true
+
+    func makeCoordinator() -> Coordinator { Coordinator(openLinksExternally: openLinksExternally) }
+
     func makeUIView(context: Context) -> WKWebView {
-        let v = WKWebView()
+        let config = WKWebViewConfiguration()
+        let v = WKWebView(frame: .zero, configuration: config)
+        v.isOpaque = false
+        v.backgroundColor = .clear
+        v.scrollView.contentInsetAdjustmentBehavior = .never
+        v.navigationDelegate = context.coordinator
         v.pageZoom = 1.0
         return v
     }
-    
+
     func updateUIView(_ uiView: WKWebView, context: Context) {
-        uiView.loadHTMLString(text, baseURL: nil)
+        // Avoid unnecessary reloads if HTML hasn't changed
+        if context.coordinator.lastHTML != text {
+            context.coordinator.lastHTML = text
+            uiView.loadHTMLString(text, baseURL: baseURL)
+        }
+    }
+
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        var lastHTML: String?
+        let openLinksExternally: Bool
+
+        init(openLinksExternally: Bool) {
+            self.openLinksExternally = openLinksExternally
+        }
+
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+                     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            guard openLinksExternally,
+                  navigationAction.navigationType == .linkActivated,
+                  let url = navigationAction.request.url else {
+                decisionHandler(.allow)
+                return
+            }
+            // Open external links in Safari and cancel in-webview navigation
+            UIApplication.shared.open(url)
+            decisionHandler(.cancel)
+        }
     }
 }
 
@@ -113,9 +183,11 @@ public class StudyViewModel {
     }
     
     func showEnrollmentView() -> UIViewController? {
-        
+        guard let title = study.name else { return nil }
+        guard let eligibility = study.eligibility else { return nil }
+
         let consent = ConsentController(
-            study_title: study.name!,
+            study_title: title,
             htmlTemplate: "<h1>Consent</h1>",
             signatureTitle: nil,
             signaturePageContent: "Signature",
@@ -123,22 +195,20 @@ public class StudyViewModel {
             requiredConsentToShare: true,
             requiredConsentToSubmitHealthRecord: true
         )
-        
+
         self.enrollmentModule = Enrollment(
             repository: nil,
             for: study,
             participantType: PPMParticipant.self,
-            eligibilityController: study.eligibility!,
+            eligibilityController: eligibility,
             consentController: consent,
             preProcessor: nil,
-            callback: nil)
-        
-        
-        do {
-            return try self.enrollmentModule?.viewController()
-        }
+            callback: nil
+        )
+
+        do { return try self.enrollmentModule?.viewController() }
         catch {
-            print(error)
+            print("Enrollment error: \(error)")
             return nil
         }
     }

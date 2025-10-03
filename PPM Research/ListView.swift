@@ -11,6 +11,10 @@ import SMARTMarkers
 import SMART
 import CodeScanner
 
+
+// let url = URL(string: "https://hms-dbmi-ppm-public-site.s3.us-east-1.amazonaws.com/fhir/")!
+let url = URL(string: "https://peoplepoweredmedicine.org/fhir/")!
+//let url = URL(string: "https://server.fire.ly/r4/")!
 class StudiesView: UITableViewController {
     
     var studies: [Study]?
@@ -20,7 +24,6 @@ class StudiesView: UITableViewController {
         title = "Studies"
         self.navigationItem.largeTitleDisplayMode = .always
         self.navigationItem.rightBarButtonItem = UIBarButtonItem(image: UIImage(systemName: "qrcode.viewfinder"), style: .plain, target: self, action: #selector(showQRScanner(_:)))
-        let url = URL(string: "https://peoplepoweredmedicine.org/fhir/")!
         getstudies(url: url) { bundl, error in
             if let bundl {
                 do {
@@ -86,7 +89,7 @@ class StudiesView: UITableViewController {
                 VStack (alignment: .leading) {
                     Text("People-Powered Medicine")
                         .font(.title2)
-                    Text("http://peoplepoweredmedicine.org/fhir/ResearchStudy")
+                    Text(url.absoluteString)
                         .font(.footnote)
                 }
             }
@@ -125,30 +128,25 @@ class StudiesView: UITableViewController {
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         
-        let study = self.studies![indexPath.row]
-        
-        tableView.deselectRow(at: indexPath, animated: true)
-        
-  
-        
-        
-        let viewModel = StudyViewModel(study: study)
-        let view = StudyView(viewModel: viewModel)
+        let study = studies![indexPath.row]
+        let studyModel = StudyViewModel(study: study)
+        let view = StudyView(viewModel: studyModel)
         let host = UIHostingController(rootView: view)
         present(host, animated: true)
+        tableView.deselectRow(at: indexPath, animated: true)
     }
     
-    func loadLocalResearchStudy() throws -> [Study]? {
-        do {
-            let phs = try localresource("researchstudy-phs", bundle: .main, resourceType: ResearchStudy.self)
-            let phs_study = try Study(phs)
-            return [phs_study]
-        }
-        catch {
-            print(error)
-            return nil
-        }
-    }
+//    func loadLocalResearchStudy() throws -> [Study]? {
+//        do {
+//            let phs = try localresource("researchstudy-phs", bundle: .main, resourceType: ResearchStudy.self)
+//            let phs_study = try Study(phs)
+//            return [phs_study]
+//        }
+//        catch {
+//            print(error)
+//            return nil
+//        }
+//    }
 }
 
 
